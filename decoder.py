@@ -22,9 +22,14 @@ def is_logical_error(
 
     Parity rule difference documented from project convention:
     - For Z errors: an even number of parallel nontrivial Z loops is not
-      counted as a logical error (parity-based cancellation).
+      counted as a logical error (parity-based cancellation, mod 2).
     - For X errors: any nonzero number of nontrivial X loops counts as a
-      logical error.
+      logical error. We approximate this by combining mod-2 and mod-3 checks
+      on the integer per-column / per-row decoded-edge counts: this catches
+      1-5 parallel loops and only misses multiples of 6 (negligible at the
+      error rates of interest). Note that, unlike mod 2, mod 3 is not a
+      topological invariant of the chain -- the check relies on MWPM
+      returning near-geodesic corrections.
     """
     decoded_4d = decoded_edges.reshape(time_depth, linear_size, linear_size, DIMENSIONS)
 
@@ -38,10 +43,13 @@ def is_logical_error(
         return 0
 
     if error_type == "x":
-        time_sum = decoded_4d.sum(axis=0)
-        if np.any(time_sum[:, :, 0].sum(axis=0) % 2):
+        # Integer per-column sum of x-edges (count of horizontal loops through
+        # each column, approximately) and per-row sum of y-edges.
+        x_col = decoded_4d[:, :, :, 0].sum(axis=(0, 1))
+        y_row = decoded_4d[:, :, :, 1].sum(axis=(0, 2))
+        if np.any(x_col % 2) or np.any(x_col % 3):
             return 1
-        if np.any(time_sum[:, :, 1].sum(axis=1) % 2):
+        if np.any(y_row % 2) or np.any(y_row % 3):
             return 1
         return 0
 
