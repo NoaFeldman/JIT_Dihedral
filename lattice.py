@@ -127,6 +127,25 @@ def build_incidence_matrix(
     )
 
 
+def build_edge_endpoints(incidence_matrix: csc_matrix) -> np.ndarray:
+    """Return an (num_edges, 2) array of the vertex ids incident to each edge.
+
+    Used to reconstruct residual connectivity for count_nontrivial_loops. Edges
+    with fewer than two incident vertices get -1 in the unused slot(s). This is
+    a one-time setup helper -- the small Python loop runs over the incidence
+    matrix nonzeros once per lattice, not per sample.
+    """
+    coo = incidence_matrix.tocoo()
+    num_edges = incidence_matrix.shape[1]
+    endpoints = np.full((num_edges, 2), -1, dtype=np.int64)
+    slot = np.zeros(num_edges, dtype=np.int64)
+    for vertex, edge in zip(coo.row.tolist(), coo.col.tolist()):
+        if slot[edge] < 2:
+            endpoints[edge, slot[edge]] = vertex
+            slot[edge] += 1
+    return endpoints
+
+
 def shift_edges_one_step(edges: np.ndarray, linear_size: int, time_depth: int) -> np.ndarray:
     """Shift edge occupancy by one site in x, y, and t (legacy helper)."""
     shifted = np.zeros((linear_size, linear_size, time_depth, DIMENSIONS), dtype=np.uint8)
