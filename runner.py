@@ -16,7 +16,12 @@ from .geometry import (
     get_time_depth,
     last_time_step_measurement_edges,
 )
-from .lattice import build_incidence_matrix, build_neighbor_edge_lookup, precompute_twist_masks
+from .lattice import (
+    build_edge_endpoints,
+    build_incidence_matrix,
+    build_neighbor_edge_lookup,
+    precompute_twist_masks,
+)
 from .twisted import build_z_correction_matchings_from_x, generate_twisted_z_errors
 
 COLORS = ["b", "g", "r"]
@@ -46,6 +51,7 @@ def run_full_simulation(
 
     full_incidence = build_incidence_matrix(linear_size, time_depth, boundary)
     full_matching = Matching(full_incidence)
+    edge_endpoints = build_edge_endpoints(full_incidence)
     prefix_incidences = [
         build_incidence_matrix(linear_size, t_idx + 1, open_end_node=(t_idx < time_depth - 1))
         for t_idx in range(time_depth)
@@ -79,14 +85,16 @@ def run_full_simulation(
             syndrome = full_incidence @ noise % 2
             global_prediction = full_matching.decode(syndrome)
             global_decoded[color] = (noise + global_prediction) % 2
-            is_global_error = is_global_error or is_logical_error(
+            if not is_global_error and is_logical_error(
                 global_decoded[color],
                 linear_size,
                 time_depth,
                 error_type="x",
-            )
+                edge_endpoints=edge_endpoints,
+            ):
+                is_global_error = 1
 
-            if use_jit:
+            if use_jit and not is_jit_x_error:
                 jit_prediction = jit_decode_full(
                     linear_size,
                     time_depth,
@@ -97,10 +105,16 @@ def run_full_simulation(
                     prefix_matchings,
                 )
                 jit_decoded[color] = (noise + jit_prediction) % 2
-                if is_logical_error(jit_decoded[color], linear_size, time_depth, error_type="x"):
+                if is_logical_error(
+                    jit_decoded[color],
+                    linear_size,
+                    time_depth,
+                    error_type="x",
+                    edge_endpoints=edge_endpoints,
+                ):
                     is_jit_x_error = 1
-                    break
-                jit_x_correction[color] = jit_prediction
+                else:
+                    jit_x_correction[color] = jit_prediction
 
             global_x_correction[color] = global_prediction
 
@@ -207,6 +221,7 @@ def run_x_only_simulation(
 
     full_incidence = build_incidence_matrix(linear_size, time_depth, boundary)
     full_matching = Matching(full_incidence)
+    edge_endpoints = build_edge_endpoints(full_incidence)
     prefix_incidences = [
         build_incidence_matrix(linear_size, t_idx + 1, open_end_node=(t_idx < time_depth - 1))
         for t_idx in range(time_depth)
@@ -227,7 +242,9 @@ def run_x_only_simulation(
         syndrome = full_incidence @ noise % 2
         global_prediction = full_matching.decode(syndrome)
         global_decoded = (noise + global_prediction) % 2
-        global_error_counter += is_logical_error(global_decoded, linear_size, time_depth, error_type="x")
+        global_error_counter += is_logical_error(
+            global_decoded, linear_size, time_depth, error_type="x", edge_endpoints=edge_endpoints
+        )
 
         jit_prediction = jit_decode_full(
             linear_size,
@@ -239,7 +256,9 @@ def run_x_only_simulation(
             prefix_matchings,
         )
         jit_decoded = (noise + jit_prediction) % 2
-        jit_error_counter += is_logical_error(jit_decoded, linear_size, time_depth, error_type="x")
+        jit_error_counter += is_logical_error(
+            jit_decoded, linear_size, time_depth, error_type="x", edge_endpoints=edge_endpoints
+        )
 
     os.makedirs(output_dir, exist_ok=True)
     counters = [global_error_counter, jit_error_counter]
