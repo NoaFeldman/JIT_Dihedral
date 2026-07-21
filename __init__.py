@@ -12,6 +12,7 @@ from .geometry import (
     vertex_index,
 )
 from .lattice import (
+    build_edge_endpoints,
     build_incidence_matrix,
     build_neighbor_edge_lookup,
     get_vertex_edges,
@@ -19,6 +20,7 @@ from .lattice import (
     shift_edges_one_step,
 )
 from .decoder import (
+    count_nontrivial_loops,
     is_logical_error,
     jit_decode_full,
     jit_decode_step,
@@ -28,10 +30,24 @@ from .twisted import (
     generate_twisted_z_errors,
 )
 from .runner import (
-    gather_effective_length_data,
     run_full_simulation,
-    run_res_30d_grid,
     run_x_only_simulation,
+)
+from .multilayer import (
+    LayerSpec,
+    MultiLayerContext,
+    ParentLayerView,
+    build_multilayer_context,
+    build_multilayer_filename,
+    jit_decode_step_weighted,
+    layer_has_logical_error,
+    make_default_layer_specs,
+    run_global_cascade,
+    run_multilayer_jit,
+    run_multilayer_simulation,
+    sample_base_noises,
+    twisted_delegated_accountant,
+    twisted_delegated_generator,
 )
 
 __all__ = [
@@ -40,18 +56,32 @@ __all__ = [
     "get_time_depth",
     "last_time_step_measurement_edges",
     "vertex_index",
+    "build_edge_endpoints",
     "build_incidence_matrix",
     "build_neighbor_edge_lookup",
     "get_vertex_edges",
     "precompute_twist_masks",
     "shift_edges_one_step",
+    "count_nontrivial_loops",
     "is_logical_error",
     "jit_decode_full",
     "jit_decode_step",
     "build_z_correction_matchings_from_x",
     "generate_twisted_z_errors",
-    "gather_effective_length_data",
     "run_full_simulation",
-    "run_res_30d_grid",
     "run_x_only_simulation",
+    "LayerSpec",
+    "MultiLayerContext",
+    "ParentLayerView",
+    "build_multilayer_context",
+    "build_multilayer_filename",
+    "jit_decode_step_weighted",
+    "layer_has_logical_error",
+    "make_default_layer_specs",
+    "run_global_cascade",
+    "run_multilayer_jit",
+    "run_multilayer_simulation",
+    "sample_base_noises",
+    "twisted_delegated_accountant",
+    "twisted_delegated_generator",
 ]

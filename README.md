@@ -12,8 +12,14 @@ Data-generation used for simulating the JIT decoder in a cubic lattice, includin
 - runner.py: high-level simulation entry points:
   - run_full_simulation
   - run_x_only_simulation
-  - gather_effective_length_data
-  - run_res_30d_grid
+- multilayer.py: N-layer generalization where every layer is corrected just in
+  time, interleaved per time step; flux loops of layer i delegate errors into
+  layer i+1. Per-layer delegated-error generation and decoder-side accounting
+  (heralded 0-weight links) are passed in as functions (LayerSpec); defaults
+  reproduce the twisted-error behavior of the two-layer code.
+  - run_multilayer_simulation (JIT cascade + global-cascade baseline)
+- cluster/: Slurm array worker and collector for multilayer sweeps
+  (multilayer_worker.py, multilayer_collect.py), driven by multilayer.slurm.sh.
 - cli.py: command-line wrapper preserving legacy argument order.
 
 ## Quick usage
@@ -39,3 +45,31 @@ counters = run_full_simulation(
 )
 print(counters)
 ```
+
+## Multi-layer JIT
+
+```python
+from shared_simulation.multilayer import (
+    make_default_layer_specs,
+    run_multilayer_simulation,
+)
+
+result = run_multilayer_simulation(
+    linear_size=9,
+    layer_specs=make_default_layer_specs([0.02, 0.02, 0.02]),
+    repetitions=10000,
+    output_dir="results/multilayer",
+    boundary="OBC",
+    run_id=0,
+)
+print(result)
+```
+
+Custom physics per layer: pass your own `generate_delegated_errors` /
+`account_delegated_errors` callables in each `LayerSpec` (see the contracts in
+the multilayer.py module docstring).
+
+Cluster sweep: edit the configuration block in `multilayer.slurm.sh`
+(200-task array), then `sbatch multilayer.slurm.sh` from the repository root
+and aggregate with `python cluster/multilayer_collect.py` once the array
+finishes.
